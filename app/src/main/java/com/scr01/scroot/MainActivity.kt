@@ -601,6 +601,33 @@ class MainActivity : Activity() {
         root.addView(automationCard)
         root.addView(spacer(12))
 
+        val appsCard = cardLayout().apply {
+            addView(sectionTitle(
+                "Apps",
+                "Open installed apps from SCRoot. This does not edit the stock Home sidebar, change the default launcher, or enable the SystemUI bridge."
+            ))
+            addView(Button(this@MainActivity).apply {
+                text = "Open apps"
+                setTextColor(primary)
+                textSize = 15f
+                typeface = medium
+                isAllCaps = false
+                gravity = Gravity.CENTER
+                stateListAnimator = null
+                background = rounded(primaryContainer, 18)
+                minHeight = 0
+                minimumHeight = 0
+                setPadding(dp(18), 0, dp(18), 0)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(48)
+                ).also { it.topMargin = dp(14) }
+                setOnClickListener { openAppList() }
+            })
+        }
+        root.addView(appsCard)
+        root.addView(spacer(12))
+
         button = Button(this).apply {
             text = "Start root setup"
             setTextColor(Color.WHITE)
@@ -1440,6 +1467,26 @@ class MainActivity : Activity() {
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Continue") { _, _ -> start() }
             .show()
+    }
+
+    private fun openAppList() {
+        if (running || RootFlow.isRunning()) {
+            Toast.makeText(
+                this,
+                "Wait until setup finishes.",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+        try {
+            startActivity(Intent(this, AppListActivity::class.java))
+        } catch (_: RuntimeException) {
+            Toast.makeText(
+                this,
+                "The app list could not be opened.",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 
     private fun openKernelSuManager() {

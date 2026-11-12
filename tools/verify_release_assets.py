@@ -121,8 +121,16 @@ EXPECTED_QUERIES = {
     "com.sec.android.app.launcher",
 }
 
+EXPECTED_QUERY_INTENTS = (
+    (
+        ("android.intent.action.MAIN",),
+        frozenset({"android.intent.category.LAUNCHER"}),
+    ),
+)
+
 EXPECTED_COMPONENTS = {
     ("activity", ".MainActivity"): "true",
+    ("activity", ".AppListActivity"): "false",
     ("activity", ".BootTraceActivity"): "false",
     ("receiver", ".AutoRootReceiver"): "false",
     ("service", ".AutoRootService"): "false",
@@ -580,6 +588,27 @@ def verify_zip(
                 expected_lock_file="/data/adb/.scr01_scroot_menu.activation.lock",
             )
 
+def manifest_query_intents(
+    root: ElementTree.Element,
+) -> tuple[tuple[tuple[str, ...], frozenset[str]], ...]:
+    found = []
+    for intent in root.findall("queries/intent"):
+        if list(intent.findall("data")):
+            raise ValueError("Android package visibility query must not carry data")
+        actions = tuple(
+            element.get(f"{ANDROID}name")
+            for element in intent.findall("action")
+        )
+        categories = frozenset(
+            element.get(f"{ANDROID}name")
+            for element in intent.findall("category")
+        )
+        if None in actions or None in categories:
+            raise ValueError("unnamed Android package visibility query")
+        found.append((actions, categories))
+    return tuple(found)
+
+
 def verify_manifest(path: Path) -> None:
     require_regular_file(path, 1024 * 1024)
     root = ElementTree.parse(path).getroot()
@@ -615,6 +644,14 @@ def verify_manifest(path: Path) -> None:
     queries = set(query_names)
     if queries != EXPECTED_QUERIES:
         raise ValueError(f"Android package query surface mismatch: {sorted(queries)}")
+    query_intents = manifest_query_intents(root)
+    if query_intents != EXPECTED_QUERY_INTENTS:
+        raise ValueError(f"Android package visibility intent mismatch: {query_intents}")
+    if any(
+        "android.intent.category.HOME" in categories
+        for _, categories in query_intents
+    ):
+        raise ValueError("Android package visibility must not query the home role")
     application = root.find("application")
     if application is None:
         raise ValueError("Android application element is missing")

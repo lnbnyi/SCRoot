@@ -1452,7 +1452,15 @@ class MainActivity : Activity() {
     }
 
     private fun confirmOrStart() {
-        if (running || RootFlow.isRunning()) return
+        if (!manualStartAllowed(
+                automaticActive = AutoRootService.isActiveInProcess(),
+                manualActive = ManualFlowGuardService.isActiveInProcess(),
+                flowRunning = running || RootFlow.isRunning()
+            )
+        ) {
+            logln("[BLOCKED] Setup is already running for this boot. The exploit will not be started again.")
+            return
+        }
         if (RootFlow.isModuleLoaded()) {
             start()
             return

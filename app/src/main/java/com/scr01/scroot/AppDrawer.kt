@@ -69,7 +69,9 @@ internal object AppDrawer {
     fun sortForDrawer(apps: List<LaunchableApp>): List<LaunchableApp> {
         val rank = preferredPackages.withIndex().associate { it.value to it.index }
         return apps
-            .filter { includeInDrawer(it.packageName) && it.activityName.isNotBlank() }
+            .filter {
+                launcherEligible(it.packageName, enabled = true, launcherActivity = it.activityName)
+            }
             .distinctBy { it.packageName to it.activityName }
             .sortedWith(
                 compareBy<LaunchableApp>(

@@ -86,7 +86,7 @@ class AppListActivity : Activity() {
                     regular = regular,
                     medium = medium
                 ) {
-                    openIntent(AppDrawer.launchIntent(app), privilegedAppsScreen = false)
+                    openListedApp(app)
                 })
                 content.addView(spacer(dp(8)))
             }
@@ -99,6 +99,36 @@ class AppListActivity : Activity() {
         })
         window.statusBarColor = surface
         window.navigationBarColor = background
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (contentBound) {
+            recreate()
+        } else {
+            contentBound = true
+        }
+    }
+
+    private var contentBound = false
+
+    private fun openListedApp(app: LaunchableApp) {
+        val launch = try {
+            packageManager.getLaunchIntentForPackage(app.packageName)
+        } catch (_: RuntimeException) {
+            null
+        }
+        val enabled = try {
+            packageManager.getApplicationInfo(app.packageName, 0).enabled
+        } catch (_: PackageManager.NameNotFoundException) {
+            false
+        }
+        if (!launcherEligible(app.packageName, enabled, launch?.component?.className)) {
+            toast("${app.label} is not installed")
+            recreate()
+            return
+        }
+        openIntent(AppDrawer.launchIntent(app), privilegedAppsScreen = false)
     }
 
     private fun overviewAppsResolves(): Boolean = try {

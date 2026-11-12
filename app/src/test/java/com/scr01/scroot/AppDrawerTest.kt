@@ -16,6 +16,8 @@ class AppDrawerTest {
                 LaunchableApp("com.example.notes", ".Main", "Notes"),
                 LaunchableApp("com.android.deskclock", ".DeskClock", "Clock"),
                 LaunchableApp("com.microsoft.launcher", ".Launcher", "Microsoft Launcher"),
+                LaunchableApp("com.follow.clash", ".MainActivity", "FlClash"),
+                LaunchableApp("com.wangzan101.mika", ".MainActivity", "Mika"),
                 LaunchableApp("com.github.surfing", ".ui.LauncherActivity", "SurfingTile"),
                 LaunchableApp("com.zwh.flip.clock", ".MainActivity", "Flip Clock"),
                 LaunchableApp("one.alynx.flipclock", ".MainActivity", "Alynx Clock"),
@@ -27,6 +29,8 @@ class AppDrawerTest {
         assertEquals(
             listOf(
                 "com.microsoft.launcher",
+                "com.follow.clash",
+                "com.wangzan101.mika",
                 "com.github.surfing",
                 "com.zwh.flip.clock",
                 "one.alynx.flipclock",

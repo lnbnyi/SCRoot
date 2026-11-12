@@ -31,6 +31,8 @@ internal object AppDrawer {
 
     val preferredPackages: List<String> = listOf(
         "com.microsoft.launcher",
+        "com.follow.clash",
+        "com.wangzan101.mika",
         "com.github.surfing",
         "com.zwh.flip.clock",
         "one.alynx.flipclock",

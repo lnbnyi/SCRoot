@@ -41,6 +41,6 @@ docker run --rm --platform linux/amd64 \
     make -C /ksrc/linux-4.14.186 M=/work ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules
     cp /work/ksu_glue.ko /out/ksu_glue.unpatched.ko
     python3 /source/kernel/patch_init_offset.py /out/ksu_glue.unpatched.ko /out/ksu_glue.ko
-    echo "2d18d4e6701337933add123ef01f4dceb151dfbe71e6f9f7dce7f512a21bad2d  /out/ksu_glue.unpatched.ko" | sha256sum -c -
-    echo "b0789adf40150a9ee22c5d4a62efa4ee5dae94a753a5250e0db669498c069c30  /out/ksu_glue.ko" | sha256sum -c -
+    echo "f60a5bf12e127e7d666009fa019e5341204ef9aaf59c0f043166506a1e011ce6  /out/ksu_glue.unpatched.ko" | sha256sum -c -
+    echo "e0fc60e4f5f8abc1a027f1867147b3de88a402e537ebd259e1217364fe604145  /out/ksu_glue.ko" | sha256sum -c -
   '

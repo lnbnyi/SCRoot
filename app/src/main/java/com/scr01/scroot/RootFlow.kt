@@ -1123,7 +1123,7 @@ object RootFlow {
             result.lines.any { it.startsWith("UI_READY ") }
         if (!ready && provisionFailureMayUseLiveRecovery(result.rc, result.timedOut)) {
             val health = probeSystemUiLiveHealth(ctx)
-            log("  [recovery] retrying the safely rolled-back UI component")
+            log("  [recovery] retrying UI activation. This does not unmount vendor or reboot.")
             ready = recoverProvisionedSystemUiLive(health, log) &&
                 verifyProvisionedSystemUiLive(ctx)
         }
@@ -1576,7 +1576,8 @@ object RootFlow {
         val userspaceReady: Boolean,
         val exploitAttempted: Boolean,
         val systemUiIntegrated: Boolean = false,
-        val systemUiDeferred: Boolean = false
+        val systemUiDeferred: Boolean = false,
+        val healthLines: List<String> = emptyList()
     )
 
     internal fun isUserUnlockedForSystemUi(ctx: Context): Boolean {
@@ -1634,12 +1635,17 @@ object RootFlow {
         } catch (_: Exception) {
             null
         }
-        val overviewReady = health != null && overviewHealthSignalsReady(
+        val providerReady = health != null && overviewHealthSignalsReady(
             protocol = health.getInt("protocol", -1),
             buildId = health.getString(OVERVIEW_HEALTH_BUILD_KEY),
             quickstepBound = health.getBoolean("quickstep_bound", false),
             brokerReady = health.getBoolean("broker_ready", false)
-        ) || (!officialCaller && functionalRecentsObserved())
+        )
+        val overviewReady = overviewReadyForCaller(
+            officialCaller = officialCaller,
+            providerReady = providerReady,
+            functionalRecents = !officialCaller && functionalRecentsObserved()
+        )
         return SystemUiLiveHealth(
             overviewReady = overviewReady,
             homeReady = isHomeUiLive(appContext)
@@ -1651,30 +1657,72 @@ object RootFlow {
         return signerDigests(info) == setOf(OFFICIAL_HEALTH_CALLER_SHA256)
     }
 
+    internal fun overviewReadyForCaller(
+        officialCaller: Boolean,
+        providerReady: Boolean,
+        functionalRecents: Boolean
+    ): Boolean = if (officialCaller) providerReady else providerReady || functionalRecents
+
+    internal fun functionalRecentsFromFlags(
+        quickStepResolved: Boolean,
+        quickStepConnected: Boolean,
+        layoutRecent: Boolean,
+        recentsComponent: Boolean
+    ): Boolean = quickStepResolved && quickStepConnected &&
+        (layoutRecent || recentsComponent)
+
+    internal fun diagnosticFlag(lines: List<String>, key: String): Boolean? =
+        when (lines.lastOrNull { it.trim().startsWith("$key=") }?.substringAfter("=")?.trim()) {
+            "1" -> true
+            "0" -> false
+            else -> null
+        }
+
+    internal fun postRootHealthWarning(lines: List<String>): String? {
+        if (lines.isEmpty() ||
+            lines.any {
+                it == "HEALTH_TIMEOUT" ||
+                    it == "HEALTH_UNAVAILABLE" ||
+                    it.startsWith("HEALTH_SKIP")
+            }
+        ) {
+            return "SystemUI health is unknown. Root was not changed."
+        }
+        return when (lines.firstOrNull { it.startsWith("MAPPER=") }?.substringAfter("=")) {
+            "present" -> null
+            "missing" ->
+                "SystemUI cannot see the graphics mapper. Root was not changed, and vendor was not unmounted."
+            else -> "SystemUI health is unknown. Root was not changed."
+        }
+    }
+
     private fun functionalRecentsObserved(): Boolean {
         if (!isModuleLoaded()) return false
         val script = """
             state=/data/adb/.scroot-recents-state.${'$'}${'$'}
             rm -f "${'$'}state"
             /system/bin/timeout -k 1s 8s dumpsys activity service com.android.systemui/.SystemUIService > "${'$'}state" 2>/dev/null || { rm -f "${'$'}state"; exit 1; }
-            grep -q 'quickStepIntentResolved=true' "${'$'}state" || { rm -f "${'$'}state"; exit 1; }
-            grep -q 'isConnected=true' "${'$'}state" || { rm -f "${'$'}state"; exit 1; }
-            if grep -q 'mCurrentLayout: .*recent' "${'$'}state" || grep -q 'com.android.quickstep.RecentsActivity' "${'$'}state"; then
-              rm -f "${'$'}state"
-              echo RECENTS_OBSERVED=1
-              exit 0
-            fi
+            if grep -q 'quickStepIntentResolved=true' "${'$'}state"; then echo QUICKSTEP_RESOLVED=1; else echo QUICKSTEP_RESOLVED=0; fi
+            if grep -q 'isConnected=true' "${'$'}state"; then echo QUICKSTEP_CONNECTED=1; else echo QUICKSTEP_CONNECTED=0; fi
+            if grep -q 'mCurrentLayout: .*recent' "${'$'}state"; then echo LAYOUT_RECENT=1; else echo LAYOUT_RECENT=0; fi
+            component=0
+            if grep -q 'com.android.quickstep.RecentsActivity' "${'$'}state"; then component=1; fi
+            if dumpsys activity recents 2>/dev/null | grep -q 'com.sec.android.app.launcher/com.android.quickstep.RecentsActivity'; then component=1; fi
+            if dumpsys package com.sec.android.app.launcher 2>/dev/null | grep -q 'com.android.quickstep.RecentsActivity'; then component=1; fi
+            echo RECENTS_COMPONENT=${'$'}component
             rm -f "${'$'}state"
-            dumpsys activity recents 2>/dev/null | grep -q 'com.sec.android.app.launcher/com.android.quickstep.RecentsActivity' || dumpsys package com.sec.android.app.launcher 2>/dev/null | grep -q 'com.android.quickstep.RecentsActivity' || exit 1
-            echo RECENTS_OBSERVED=1
         """.trimIndent()
         val result = execBuffered(
             "/system/bin/su",
             listOf("-c", script),
             timeoutMs = 8_000
         )
-        return !result.timedOut && result.rc == 0 &&
-            result.lines.any { it.trim() == "RECENTS_OBSERVED=1" }
+        if (result.timedOut || result.rc != 0) return false
+        val resolved = diagnosticFlag(result.lines, "QUICKSTEP_RESOLVED") ?: return false
+        val connected = diagnosticFlag(result.lines, "QUICKSTEP_CONNECTED") ?: return false
+        val layout = diagnosticFlag(result.lines, "LAYOUT_RECENT") ?: return false
+        val component = diagnosticFlag(result.lines, "RECENTS_COMPONENT") ?: return false
+        return functionalRecentsFromFlags(resolved, connected, layout, component)
     }
 
     private fun mountedHomeMatchesExpected(): Boolean {
@@ -1724,6 +1772,14 @@ object RootFlow {
         return if (result.timedOut) listOf("HEALTH_TIMEOUT") else lines.ifEmpty {
             listOf("HEALTH_UNAVAILABLE")
         }
+    }
+
+    private fun recordBoundedHealth(log: (String) -> Unit): List<String> {
+        log("[HEALTH] Root core is ready. Checking SystemUI and Wi-Fi without changing them.")
+        val lines = boundedPostRootHealth()
+        lines.forEach { log("  $it") }
+        log("[HEALTH] Kernel umount and Overview were not changed by this check.")
+        return lines
     }
 
     internal fun overviewHealthSignalsReady(
@@ -2050,6 +2106,11 @@ object RootFlow {
                 log("[WARNING] Launcher integration deferred until KernelSU setup is healthy.")
                 false
             }
+            val healthLines = if (crowned && ksudReady && patchReceiptReady && hookTransactionHealthy) {
+                recordBoundedHealth(log)
+            } else {
+                emptyList()
+            }
             return Result(
                 rooted = true,
                 moduleLoaded = patchReceiptReady && hookTransactionHealthy,
@@ -2057,7 +2118,8 @@ object RootFlow {
                 userspaceReady = ksudReady,
                 exploitAttempted = false,
                 systemUiIntegrated = systemUiIntegrated,
-                systemUiDeferred = systemUiDeferred
+                systemUiDeferred = systemUiDeferred,
+                healthLines = healthLines
             )
         }
 
@@ -2447,10 +2509,10 @@ object RootFlow {
                 "[WARNING] module not loaded — review the trace"
             }
         )
-        if (mod && mgr && ksudReady) {
-            log("[HEALTH] Root core is ready. Checking SystemUI and Wi-Fi without changing them.")
-            boundedPostRootHealth().forEach { log("  $it") }
-            log("[HEALTH] Kernel umount and Overview were not changed by this check.")
+        val healthLines = if (mod && mgr && ksudReady) {
+            recordBoundedHealth(log)
+        } else {
+            emptyList()
         }
         return Result(
             rooted = true,
@@ -2459,7 +2521,8 @@ object RootFlow {
             userspaceReady = ksudReady,
             exploitAttempted = true,
             systemUiIntegrated = systemUiIntegrated,
-            systemUiDeferred = systemUiDeferred
+            systemUiDeferred = systemUiDeferred,
+            healthLines = healthLines
         )
     }
 

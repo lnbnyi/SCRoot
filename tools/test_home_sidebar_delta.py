@@ -86,6 +86,7 @@ class HomeSidebarDeltaTest(unittest.TestCase):
         self.assertIn(b"KSU Next", dex)
         self.assertIn(b"launchable", dex)
         self.assertIn(b"addIfLaunchable", dex)
+        self.assertIn(b"getLaunchIntentForPackage", dex)
         self.assertNotIn(b"android.intent.category.HOME", dex)
 
 

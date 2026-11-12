@@ -123,7 +123,7 @@ class AppListActivity : Activity() {
         } catch (_: PackageManager.NameNotFoundException) {
             false
         }
-        if (!launcherEligible(app.packageName, enabled, launch?.component?.className)) {
+        if (!AppDrawer.launcherEligible(app.packageName, enabled, launch?.component?.className)) {
             toast("${app.label} is not installed")
             recreate()
             return

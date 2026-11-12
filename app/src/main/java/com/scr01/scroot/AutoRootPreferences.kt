@@ -299,8 +299,11 @@ object AutoRootPreferences {
     fun currentAttempt(context: Context): Attempt? {
         val bootId = currentBootId() ?: return null
         val preferences = prefs(context)
-        if (preferences.getString(KEY_BOOT_ID, null) != bootId) return null
-        val storedStatus = preferences.getString(KEY_STATUS, null)
+        val storedStatus = bootScopedValue(
+            preferences.getString(KEY_BOOT_ID, null),
+            bootId,
+            preferences.getString(KEY_STATUS, null)
+        ) ?: return null
         val status = normalizedAttemptStatus(storedStatus) ?: return null
         return Attempt(
             status = status,
@@ -310,6 +313,20 @@ object AutoRootPreferences {
                 "invalid persisted attempt status"
             }
         )
+    }
+
+    internal fun bootScopedValue(
+        storedBootId: String?,
+        currentBootId: String?,
+        value: String?
+    ): String? = if (
+        storedBootId != null &&
+        currentBootId != null &&
+        storedBootId == currentBootId
+    ) {
+        value
+    } else {
+        null
     }
 
     internal fun automaticAttemptIsOrphaned(
@@ -380,8 +397,12 @@ object AutoRootPreferences {
     fun currentExploitAttempt(context: Context): Attempt? {
         val bootId = currentBootId() ?: return null
         val preferences = prefs(context)
-        if (preferences.getString(KEY_EXPLOIT_BOOT_ID, null) == bootId) {
-            val storedStatus = preferences.getString(KEY_EXPLOIT_STATUS, null)
+        val storedStatus = bootScopedValue(
+            preferences.getString(KEY_EXPLOIT_BOOT_ID, null),
+            bootId,
+            preferences.getString(KEY_EXPLOIT_STATUS, null)
+        )
+        if (storedStatus != null) {
             val status = normalizedExploitStatus(storedStatus)
             if (status != null) {
                 return Attempt(

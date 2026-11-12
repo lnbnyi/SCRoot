@@ -64,7 +64,7 @@ internal object AppDrawer {
         Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
 
     fun includeInDrawer(packageName: String): Boolean =
-        packageName.isNotBlank() && packageName != SCROOT_PACKAGE
+        launcherEligible(packageName, enabled = true, launcherActivity = packageName)
 
     fun sortForDrawer(apps: List<LaunchableApp>): List<LaunchableApp> {
         val rank = preferredPackages.withIndex().associate { it.value to it.index }
@@ -91,6 +91,15 @@ internal object AppDrawer {
         return launch.categories.isEmpty() ||
             launch.categories == setOf(Intent.CATEGORY_LAUNCHER)
     }
+
+    internal fun launcherEligible(
+        packageName: String,
+        enabled: Boolean,
+        launcherActivity: String?
+    ): Boolean = packageName.isNotBlank() &&
+        packageName != SCROOT_PACKAGE &&
+        enabled &&
+        !launcherActivity.isNullOrBlank()
 
     private fun intentFor(launch: ExplicitLaunch): Intent {
         check(isSafeExplicitLaunch(launch))

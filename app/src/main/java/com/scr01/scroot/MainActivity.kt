@@ -688,6 +688,35 @@ class MainActivity : Activity() {
         root.addView(appsCard)
         root.addView(spacer(12))
 
+        val menuCard = cardLayout().apply {
+            addView(sectionTitle(
+                "Root 菜单",
+                "选择已安装的应用，分成时钟、按键、代理等类别。保存后侧栏直接使用，不会卸载应用。"
+            ))
+            addView(Button(this@MainActivity).apply {
+                text = "编辑 Root 菜单"
+                setTextColor(primary)
+                textSize = 15f
+                typeface = medium
+                isAllCaps = false
+                gravity = Gravity.CENTER
+                stateListAnimator = null
+                background = rounded(primaryContainer, 18)
+                minHeight = 0
+                minimumHeight = 0
+                setPadding(dp(18), 0, dp(18), 0)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(48)
+                ).also { it.topMargin = dp(14) }
+                setOnClickListener {
+                    startActivity(Intent(this@MainActivity, MenuEditorActivity::class.java))
+                }
+            })
+        }
+        root.addView(menuCard)
+        root.addView(spacer(12))
+
         button = Button(this).apply {
             text = "Start root setup"
             setTextColor(Color.WHITE)

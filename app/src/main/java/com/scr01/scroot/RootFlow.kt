@@ -92,17 +92,17 @@ object RootFlow {
     private const val OVERVIEW_HEALTH_BUILD_KEY = "build_id"
     private const val OVERVIEW_HEALTH_BUILD_ID = "scroverview-0.4.7"
     private const val HOME_UI_PATCH_SHA256 =
-        "51e35c21343bc4899fbc95c886356dd1669117e8536a7ff42707ad9838217c0f"
+        "70899a6ac234d9ea4a902f62d653003a996ef2cce8595784d6fa3cd9f68b96cb"
     private const val SYSTEMUI_PATCH_SHA256 =
         "6814f34f7a382ed197b647294ccd166d78556431ec1cb3d914e2736837c6db14"
     private const val HOME_UI_PATCHER_SHA256 =
         "50688c893eab8fcf73277590f1b0486f1ba4a63431f568296ddbd864864d3089"
     private const val HOME_UI_DELTA_SHA256 =
-        "246c697fadf2242cfc75f2c8b54e8f86f370bab1ce4a9f9360ac3ffdda02ef80"
+        "2d31bf0872f26aafaa6082a2191b63800a6b1090dcab3ea7d221d3579dbf2477"
     private const val HOME_UI_BOOT_SHA256 =
-        "d8892024e68cf8ad23ad6ebc3aceb8d93215244defbb865fda0dc37befa423f3"
+        "b365b0375f5878e995d0326d95e5699fb641bfcf5e7a3fed0bae1d4bbe384997"
     private const val HOME_UI_UNINSTALL_SHA256 =
-        "eac5f73c591e632e3058e01ad8c9e16bb5b1cd6a97bee2a4f0e8046e557cba77"
+        "4938b0eebc1cfdb14b3164588c34c3e02ed7e3725239b14dbedac817b5b306bf"
     private const val HOME_UI_MODULE_PROP_SHA256 =
         "dc377eb86b02f8d94a95b264e81bbd957d2e10f9b9a9ac19fe25b1a259257f1f"
     private const val HOME_UI_SKIP_MOUNT_SHA256 =
@@ -137,7 +137,7 @@ object RootFlow {
         "meta-overlayfs-scr01.zip" to
             "df4b4a33c9974eb873e62ad01fa7229e9648cc848d032f6192a89b055cb9528c",
         HOME_UI_ASSET to
-            "f4bb698ca882e4ad6ef487519124ee5325ce6ca559d4940bd51e523cbb52302f",
+            "dcefe1dfa71452ce95ae1b10290931e452be8e17db54d06919655676ea0fbb92",
         OVERVIEW_UI_ASSET to
             "a3bcae90900fd02436108b8644fb5aa9e247816b98fb8fbe4f0c9ee81ce45981"
     )

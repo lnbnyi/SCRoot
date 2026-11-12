@@ -43,6 +43,15 @@
             android:exported="false" />
 
         <activity
+            android:name=".MenuEditorActivity"
+            android:exported="false" />
+
+        <provider
+            android:name=".RootMenuProvider"
+            android:authorities="com.scr01.scroot.menu"
+            android:exported="true" />
+
+        <activity
             android:name=".BootTraceActivity"
             android:directBootAware="true"
             android:excludeFromRecents="true"

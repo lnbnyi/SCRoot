@@ -49,19 +49,24 @@ EXPECTED_HOME_PREDECESSORS = {
     "abb5ae74eb28fa535e44128df1b66865d4788795cb3ee925c04df0a179c1e912",
     "2fa44dca4260679ebbf1f8e661ed2444d677b232b32c300a83c6ba5e8145488c",
     "77b3c5617775a3df239a2ffdeb2e90282b292b8020d8a6f53216cae200e16c18",
+    "bb226a5f4b7b2fe86b6f24870798a25c605fa123b4d578a69db51c4d50adf1bd",
+    "7656910e613e8cd400ecba2a095412098089ea5c266aed6bf924e1523277ad47",
+    "f373d38414a7bcfcf715ec15fd99d8a3413dccc175e8b26495ccfd65e22858f3",
+    "09118050be8fa8932f2efda186c45466c6f4e7f1447d61ae9fc7203a9fa5cc01",
+    "51e35c21343bc4899fbc95c886356dd1669117e8536a7ff42707ad9838217c0f",
 }
 
 TOP_LEVEL = {
     ASSETS / "manager.apk": "80a9e4b1ba9644f361add3e003e1075bd4f9cb374bbde465c2b57522b5288ba9",
     ASSETS / "meta-overlayfs-scr01.zip": "df4b4a33c9974eb873e62ad01fa7229e9648cc848d032f6192a89b055cb9528c",
-    ASSETS / "scr01-home-ui-1.7.28.zip": "0f2e8d8ec02b8ab78fc41f3a32df126d282a2f78242d1dd4f9bf85b33d06cc05",
+    ASSETS / "scr01-home-ui-1.7.28.zip": "dcefe1dfa71452ce95ae1b10290931e452be8e17db54d06919655676ea0fbb92",
     ASSETS / "scr01-overview-bridge-0.4.36.zip": "a3bcae90900fd02436108b8644fb5aa9e247816b98fb8fbe4f0c9ee81ce45981",
     NATIVE / "libadbroot.so": "5562adc1e5c6f52fb91f469a1a7d3480050d8697fb5dedbd7fb386d282cd88b8",
     NATIVE / "libbootstrap.so": "e81028efeaf44aba81607aa6116cc1273ad8f4d4eee4ec58ff5e14be061fca90",
     NATIVE / "libexploit.so": "86a8a98029e913b16abf5480bcecf8fe036cb0339de9c7b91dc5c0749898dece",
     NATIVE / "libksucheck.so": "0abb36169ff0864ee659e5b40f7666b01cf36d765e3216d9a4d14695f92817d6",
     NATIVE / "libksud.so": "637676421190aeec504093707ad675a45faaf11bd4b53129d52e150490902cca",
-    NATIVE / "libksuglue.so": "b1f6b9afbbfc2f6c388dada781f0761899f494bc6f05e8657fa4325b5a0cbfd9",
+    NATIVE / "libksuglue.so": "e0fc60e4f5f8abc1a027f1867147b3de88a402e537ebd259e1217364fe604145",
     NATIVE / "libmemprep.so": "a743f6c5432ec8072faa1bc47e07d8811135905eb3e458e8f4d892b192cadcee",
     NATIVE / "librootsh.so": "77cfc2e1e8fd710cb18b442f950a76b63e0e0f30214c1131aed49d8ff85edc04",
 }
@@ -79,12 +84,12 @@ ZIP_CONTENTS = {
     },
     ASSETS / "scr01-home-ui-1.7.28.zip": {
         "bin/scbspatch": "50688c893eab8fcf73277590f1b0486f1ba4a63431f568296ddbd864864d3089",
-        "boot-completed.sh": "b6f19382ca21206ed706c5b8fb6a1b7f608e0e7cc7b4f9f1acf0d87f9272be04",
-        "customize.sh": "59a66916c4ea6111f9376e1183da8a46be5ca30d7d5044ed79bfcb70715ba5b9",
+        "boot-completed.sh": "b365b0375f5878e995d0326d95e5699fb641bfcf5e7a3fed0bae1d4bbe384997",
+        "customize.sh": "7fe462746114c6a88421da4ef28f4f8dd458b2dbe59b6026e7d4cd9fa8697205",
         "module.prop": "dc377eb86b02f8d94a95b264e81bbd957d2e10f9b9a9ac19fe25b1a259257f1f",
-        "patch/MHSHome.bsdiff": "18fb9cd306d221841c322d29470d4d0a9efd1be984e008e679e4d3868f581cbb",
+        "patch/MHSHome.bsdiff": "2d31bf0872f26aafaa6082a2191b63800a6b1090dcab3ea7d221d3579dbf2477",
         "skip_mount": "139d0bf2668b9eb865fcb2f6dd4e8a48a2c379cebee8e87120cfcb0e064f8afb",
-        "uninstall.sh": "de012db3f34aa294b9bad714f4e022fb1fc7395202a507864ea13b8c4b8784ab",
+        "uninstall.sh": "4938b0eebc1cfdb14b3164588c34c3e02ed7e3725239b14dbedac817b5b306bf",
     },
     ASSETS / "scr01-overview-bridge-0.4.36.zip": {
         "app/SCROverview.apk": "e21c90ee1c70c0a3134f532e179bef1cdaaa47105f63fbce4ca850596607258d",
@@ -121,9 +126,19 @@ EXPECTED_QUERIES = {
     "com.sec.android.app.launcher",
 }
 
+EXPECTED_QUERY_INTENTS = (
+    (
+        ("android.intent.action.MAIN",),
+        frozenset({"android.intent.category.LAUNCHER"}),
+    ),
+)
+
 EXPECTED_COMPONENTS = {
     ("activity", ".MainActivity"): "true",
+    ("activity", ".AppListActivity"): "false",
+    ("activity", ".MenuEditorActivity"): "false",
     ("activity", ".BootTraceActivity"): "false",
+    ("provider", ".RootMenuProvider"): "true",
     ("receiver", ".AutoRootReceiver"): "false",
     ("service", ".AutoRootService"): "false",
     ("service", ".ManualFlowGuardService"): "false",
@@ -580,6 +595,27 @@ def verify_zip(
                 expected_lock_file="/data/adb/.scr01_scroot_menu.activation.lock",
             )
 
+def manifest_query_intents(
+    root: ElementTree.Element,
+) -> tuple[tuple[tuple[str, ...], frozenset[str]], ...]:
+    found = []
+    for intent in root.findall("queries/intent"):
+        if list(intent.findall("data")):
+            raise ValueError("Android package visibility query must not carry data")
+        actions = tuple(
+            element.get(f"{ANDROID}name")
+            for element in intent.findall("action")
+        )
+        categories = frozenset(
+            element.get(f"{ANDROID}name")
+            for element in intent.findall("category")
+        )
+        if None in actions or None in categories:
+            raise ValueError("unnamed Android package visibility query")
+        found.append((actions, categories))
+    return tuple(found)
+
+
 def verify_manifest(path: Path) -> None:
     require_regular_file(path, 1024 * 1024)
     root = ElementTree.parse(path).getroot()
@@ -615,6 +651,14 @@ def verify_manifest(path: Path) -> None:
     queries = set(query_names)
     if queries != EXPECTED_QUERIES:
         raise ValueError(f"Android package query surface mismatch: {sorted(queries)}")
+    query_intents = manifest_query_intents(root)
+    if query_intents != EXPECTED_QUERY_INTENTS:
+        raise ValueError(f"Android package visibility intent mismatch: {query_intents}")
+    if any(
+        "android.intent.category.HOME" in categories
+        for _, categories in query_intents
+    ):
+        raise ValueError("Android package visibility must not query the home role")
     application = root.find("application")
     if application is None:
         raise ValueError("Android application element is missing")
@@ -711,7 +755,8 @@ def verify_root_flow_security_invariants(source: str) -> None:
         '"content://com.sec.android.app.launcher.scroot.health"',
         'Uri.parse(OVERVIEW_HEALTH_URI)',
         'private const val OVERVIEW_HEALTH_BUILD_ID = "scroverview-0.4.7"',
-        "val overviewReady = health != null && overviewHealthSignalsReady(",
+        "val overviewReady = overviewReadyForCaller(",
+        "providerReady = health != null && overviewHealthSignalsReady(",
         'buildId = health.getString(OVERVIEW_HEALTH_BUILD_KEY)',
         'quickstepBound = health.getBoolean("quickstep_bound", false)',
         'brokerReady = health.getBoolean("broker_ready", false)',
@@ -725,7 +770,7 @@ def verify_root_flow_security_invariants(source: str) -> None:
         "if (!verifyProvisionedSystemUiLive(ctx)) {",
         "if (!recoverProvisionedSystemUiLive(health, log) ||",
         "if (!ready && provisionFailureMayUseLiveRecovery(result.rc, result.timedOut)) {",
-        'log("  [recovery] retrying the safely rolled-back UI component")',
+        'log("  [recovery] retrying UI activation. This does not unmount vendor or reboot.")',
         r"name=\$({ tr ",
         'append("echo \'UI_LIVE_RECOVERY_READY\'\\n")',
         "if (!isSystemUiIntegratedForCurrentBoot(ctx)) {",

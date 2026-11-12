@@ -9,8 +9,8 @@ from elftools.elf.elffile import ELFFile
 from elftools.elf.relocation import RelocationSection
 
 
-EXPECTED_INPUT = "0a37c39e94f816b7c769efa583e0134d4e3331a38d6c93a926b9373229e70ebd"
-EXPECTED_OUTPUT = "b1f6b9afbbfc2f6c388dada781f0761899f494bc6f05e8657fa4325b5a0cbfd9"
+EXPECTED_INPUT = "f60a5bf12e127e7d666009fa019e5341204ef9aaf59c0f043166506a1e011ce6"
+EXPECTED_OUTPUT = "e0fc60e4f5f8abc1a027f1867147b3de88a402e537ebd259e1217364fe604145"
 
 
 def digest(data: bytes) -> str:

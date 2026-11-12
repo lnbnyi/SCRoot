@@ -14,6 +14,10 @@
     <queries>
         <package android:name="com.rifsxd.ksunext" />
         <package android:name="com.sec.android.app.launcher" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
     </queries>
 
     <application
@@ -33,6 +37,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".AppListActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".MenuEditorActivity"
+            android:exported="false" />
+
+        <provider
+            android:name=".RootMenuProvider"
+            android:authorities="com.scr01.scroot.menu"
+            android:exported="true" />
 
         <activity
             android:name=".BootTraceActivity"

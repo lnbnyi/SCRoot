@@ -470,6 +470,26 @@ fi
             with self.assertRaises(ValueError):
                 verifier.verify_manifest(manifest)
 
+    def test_android_manifest_rejects_home_role_visibility_query(self) -> None:
+        source = verifier.MANIFEST.read_text("utf-8")
+        unsafe = source.replace(
+            """        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>""",
+            """        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>""",
+            1,
+        )
+        self.assertNotEqual(source, unsafe)
+        with tempfile.TemporaryDirectory() as temporary:
+            manifest = Path(temporary) / "AndroidManifest.xml"
+            manifest.write_text(unsafe, "utf-8")
+            with self.assertRaises(ValueError):
+                verifier.verify_manifest(manifest)
+
     def test_android_manifest_rejects_stackable_launcher_activity(self) -> None:
         source = verifier.MANIFEST.read_text("utf-8")
         unsafe = source.replace(

@@ -111,6 +111,7 @@ static unsigned long stat_profile_context_fallback;
 static unsigned long stat_sepolicy_compat;
 static unsigned long stat_kernel_umount;
 static unsigned long stat_kernel_umount_fail;
+static unsigned long stat_kernel_umount_skip;
 static unsigned long stat_adb_root_block;
 static unsigned long stat_adb_root_env;
 static unsigned long stat_adb_root_env_fail;
@@ -159,6 +160,7 @@ module_param(stat_profile_context_fallback, ulong, 0444);
 module_param(stat_sepolicy_compat, ulong, 0444);
 module_param(stat_kernel_umount, ulong, 0444);
 module_param(stat_kernel_umount_fail, ulong, 0444);
+module_param(stat_kernel_umount_skip, ulong, 0444);
 module_param(stat_adb_root_block, ulong, 0444);
 module_param(stat_adb_root_env, ulong, 0444);
 module_param(stat_adb_root_env_fail, ulong, 0444);
@@ -862,6 +864,21 @@ static bool ksu_is_root_helper(void)
 	sec = *(char **)(cred + cred_sec_off);
 	return (unsigned long)sec >= KVA_MIN &&
 	       *(u32 *)(sec + 4) == shell_sid_cache;
+}
+
+/*
+ * init launches several HALs as UID 0 and lets their executable select the
+ * SELinux domain. Refreshing those children with a kernel credential erases
+ * init's pending exec transition; wpa_supplicant then stays in shell:s0 and
+ * hwservicemanager refuses its HIDL registration. Only root helpers need the
+ * driver-fd/bootstrap refresh. Leave init and its service children untouched.
+ */
+static bool ksu_prepare_root_exec(void)
+{
+	if (dev_uid() != 0)
+		return false;
+	ksu_resolve_sids();
+	return !ksu_is_current_domain(init_sid_cache);
 }
 
 /* Disable seccomp mode and drop TIF_SECCOMP for the current exec task. Android
@@ -2082,6 +2099,35 @@ rollback_identity:
 	return rc;
 }
 
+/*
+ * metamount.sh stores a path after it sees a KSU overlay in its own mount
+ * namespace. The zygote child umounts that path later, in a private
+ * namespace, where the same string can name the underlying vendor or system
+ * partition instead of the overlay. Detaching that partition removes
+ * /vendor/lib64/hw from SystemUI while init still has the file. Only the
+ * overlay mount itself may be detached. enable_kernel_umount stays on.
+ */
+static bool ksu_path_is_overlay_mount(const char *mnt_path)
+{
+	struct path path;
+	struct super_block *sb;
+
+	if (!mnt_path || kern_path(mnt_path, LOOKUP_FOLLOW, &path))
+		return false;
+	if (!path.mnt || !path.dentry || path.dentry != path.mnt->mnt_root) {
+		path_put(&path);
+		return false;
+	}
+	sb = path.mnt->mnt_sb;
+	if (!sb || !sb->s_type || !sb->s_type->name ||
+	    strcmp(sb->s_type->name, "overlay")) {
+		path_put(&path);
+		return false;
+	}
+	path_put(&path);
+	return true;
+}
+
 static void ksu_umount_for_uid(uid_t uid)
 {
 	const struct cred *old;
@@ -2099,6 +2145,10 @@ static void ksu_umount_for_uid(uid_t uid)
 		long rc;
 		if (!umount_entries[i].used)
 			continue;
+		if (!ksu_path_is_overlay_mount(umount_entries[i].path)) {
+			stat_kernel_umount_skip++;
+			continue;
+		}
 		rc = orig_umount((const char __user *)umount_entries[i].path,
 				 umount_entries[i].flags);
 		if (rc && rc != -EINVAL && rc != -ENOENT)
@@ -2309,7 +2359,7 @@ static long hook_execve(const char __user *filename,
 			 * reboot(2) fallback, which inherited app seccomp kills before our
 			 * syscall-table hook can see it.
 			 */
-			if (enable_manager_fd && dev_uid() == 0) {
+			if (enable_manager_fd && ksu_prepare_root_exec()) {
 				/*
 				 * A task rooted by the temporary sel_read_enforce payload still
 				 * owns its original untrusted_app cred/security blob. Replace it
@@ -2410,7 +2460,7 @@ static long hook_execveat(int dfd, const char __user *filename,
 			ksu_disable_seccomp();
 			stat_manager_child_seccomp++;
 		}
-		if (dev_uid() == 0) {
+		if (ksu_prepare_root_exec()) {
 			if (!root_helper) {
 				long refresh_rc = ksu_escalate_current();
 				if (refresh_rc)

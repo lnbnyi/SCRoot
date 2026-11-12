@@ -38,6 +38,7 @@ object RootFlow {
     const val MANAGER_PKG = "com.rifsxd.ksunext"
     private const val EXPECTED_MANAGER_SIGNER_SHA256 =
         "fbf17c01cd2051f94b72ee65b90f49bfd1920f10a6641c45cc3faeebe1371f7c"
+    private const val OFFICIAL_HEALTH_CALLER_SHA256 = EXPECTED_MANAGER_SIGNER_SHA256
     const val EXPECTED_FINGERPRINT =
         "KDDI/SCR01_jp_kdi/SCR01:11/RP1A.200720.012/SCR01KDU1AVK2:user/release-keys"
     const val EXPECTED_KERNEL_RELEASE = "4.14.186-24165939"
@@ -90,14 +91,18 @@ object RootFlow {
     private const val OVERVIEW_HEALTH_PROTOCOL = 1
     private const val OVERVIEW_HEALTH_BUILD_KEY = "build_id"
     private const val OVERVIEW_HEALTH_BUILD_ID = "scroverview-0.4.7"
+    private const val HOME_UI_PATCH_SHA256 =
+        "70899a6ac234d9ea4a902f62d653003a996ef2cce8595784d6fa3cd9f68b96cb"
+    private const val SYSTEMUI_PATCH_SHA256 =
+        "6814f34f7a382ed197b647294ccd166d78556431ec1cb3d914e2736837c6db14"
     private const val HOME_UI_PATCHER_SHA256 =
         "50688c893eab8fcf73277590f1b0486f1ba4a63431f568296ddbd864864d3089"
     private const val HOME_UI_DELTA_SHA256 =
-        "18fb9cd306d221841c322d29470d4d0a9efd1be984e008e679e4d3868f581cbb"
+        "2d31bf0872f26aafaa6082a2191b63800a6b1090dcab3ea7d221d3579dbf2477"
     private const val HOME_UI_BOOT_SHA256 =
-        "b6f19382ca21206ed706c5b8fb6a1b7f608e0e7cc7b4f9f1acf0d87f9272be04"
+        "b365b0375f5878e995d0326d95e5699fb641bfcf5e7a3fed0bae1d4bbe384997"
     private const val HOME_UI_UNINSTALL_SHA256 =
-        "de012db3f34aa294b9bad714f4e022fb1fc7395202a507864ea13b8c4b8784ab"
+        "4938b0eebc1cfdb14b3164588c34c3e02ed7e3725239b14dbedac817b5b306bf"
     private const val HOME_UI_MODULE_PROP_SHA256 =
         "dc377eb86b02f8d94a95b264e81bbd957d2e10f9b9a9ac19fe25b1a259257f1f"
     private const val HOME_UI_SKIP_MOUNT_SHA256 =
@@ -125,14 +130,14 @@ object RootFlow {
         "libbootstrap.so" to "e81028efeaf44aba81607aa6116cc1273ad8f4d4eee4ec58ff5e14be061fca90",
         "libmemprep.so" to "a743f6c5432ec8072faa1bc47e07d8811135905eb3e458e8f4d892b192cadcee",
         "libksud.so" to "637676421190aeec504093707ad675a45faaf11bd4b53129d52e150490902cca",
-        "libksuglue.so" to "b1f6b9afbbfc2f6c388dada781f0761899f494bc6f05e8657fa4325b5a0cbfd9",
+        "libksuglue.so" to "e0fc60e4f5f8abc1a027f1867147b3de88a402e537ebd259e1217364fe604145",
         "libksucheck.so" to "0abb36169ff0864ee659e5b40f7666b01cf36d765e3216d9a4d14695f92817d6",
         "libadbroot.so" to "5562adc1e5c6f52fb91f469a1a7d3480050d8697fb5dedbd7fb386d282cd88b8",
         "manager.apk" to "80a9e4b1ba9644f361add3e003e1075bd4f9cb374bbde465c2b57522b5288ba9",
         "meta-overlayfs-scr01.zip" to
             "df4b4a33c9974eb873e62ad01fa7229e9648cc848d032f6192a89b055cb9528c",
         HOME_UI_ASSET to
-            "0f2e8d8ec02b8ab78fc41f3a32df126d282a2f78242d1dd4f9bf85b33d06cc05",
+            "dcefe1dfa71452ce95ae1b10290931e452be8e17db54d06919655676ea0fbb92",
         OVERVIEW_UI_ASSET to
             "a3bcae90900fd02436108b8644fb5aa9e247816b98fb8fbe4f0c9ee81ce45981"
     )
@@ -993,9 +998,8 @@ object RootFlow {
             append("[ -x \"\$TIMEOUT\" ] || exit 70\n")
             if (!health.overviewReady) {
                 append("OVERVIEW_DIR=\$(verify_boot \"\$OVERVIEW_ID\" \"\$OVERVIEW_VERSION\" \"\$OVERVIEW_BOOT_HASH\") || exit 71\n")
-                append("echo '[ui] recovering native Recents live health'\n")
-                append("\"\$TIMEOUT\" -k 30s 110s /system/bin/sh \"\$OVERVIEW_DIR/boot-completed.sh\" || exit 72\n")
-                append("tail -n 12 \"\$OVERVIEW_DIR/service.log\" 2>/dev/null\n")
+                append("MOUNTED=\$(/system/bin/nsenter -t 1 -m -- \"\$TIMEOUT\" -k 1s 15s sha256sum /system/system_ext/priv-app/SystemUI/SystemUI.apk 2>/dev/null | awk '{print \$1}')\n")
+                append("if [ \"\$MOUNTED\" = \"$SYSTEMUI_PATCH_SHA256\" ]; then echo '[ui] patched SystemUI already mounted; overview recovery skipped'; else echo '[ui] recovering native Recents live health'; \"\$TIMEOUT\" -k 30s 110s /system/bin/sh \"\$OVERVIEW_DIR/boot-completed.sh\" || exit 72; tail -n 12 \"\$OVERVIEW_DIR/service.log\" 2>/dev/null; fi\n")
             }
             if (!health.homeReady) {
                 append("HOME_DIR=\$(verify_boot \"\$HOME_ID\" \"\$HOME_VERSION\" \"\$HOME_BOOT_HASH\") || exit 73\n")
@@ -1054,8 +1058,8 @@ object RootFlow {
             append("HOME_ZIP_HASH='${EXPECTED_ARTIFACT_SHA256[HOME_UI_ASSET]}'\n")
             append("HOME_TARGET=/system/priv-app/MHSHome/MHSHome.apk\n")
             append("SYSTEMUI_TARGET=/system/system_ext/priv-app/SystemUI/SystemUI.apk\n")
-            append("HOME_PATCH_HASH=bb226a5f4b7b2fe86b6f24870798a25c605fa123b4d578a69db51c4d50adf1bd\n")
-            append("SYSTEMUI_PATCH_HASH=6814f34f7a382ed197b647294ccd166d78556431ec1cb3d914e2736837c6db14\n")
+            append("HOME_PATCH_HASH=$HOME_UI_PATCH_SHA256\n")
+            append("SYSTEMUI_PATCH_HASH=$SYSTEMUI_PATCH_SHA256\n")
             append("BRIDGE_HASH=$OVERVIEW_UI_BRIDGE_SHA256\n")
             append("HOME_PATCHER_HASH=$HOME_UI_PATCHER_SHA256\n")
             append("HOME_DELTA_HASH=$HOME_UI_DELTA_SHA256\n")
@@ -1080,7 +1084,7 @@ object RootFlow {
             append("module_integrity() { case \"\$1\" in home) home_integrity ;; overview) overview_integrity ;; *) return 1 ;; esac; }\n")
             append("global_hash() { \"\$NSENTER\" -t 1 -m -- \"\$TIMEOUT\" -k 1s 15s sha256sum \"\$1\" 2>/dev/null | awk '{print \$1}'; }\n")
             append("bridge_hash() { paths=\$(\"\$TIMEOUT\" -k 1s 10s pm path $OVERVIEW_PACKAGE 2>/dev/null) || return 1; count=\$(printf '%s\\n' \"\$paths\" | sed -n 's/^package://p' | wc -l); [ \"\$count\" -eq 1 ] || return 1; path=\$(printf '%s\\n' \"\$paths\" | sed -n 's/^package://p'); [ -n \"\$path\" ] && file_hash \"\$path\"; }\n")
-            append("overview_connected() { dir=\$(module_dir \"\$OVERVIEW_ID\") || return 1; state_file=\"\$dir/.scroot-systemui-state.\$\$\"; rm -f \"\$state_file\"; \"\$TIMEOUT\" -k 1s 10s dumpsys activity service com.android.systemui/.SystemUIService > \"\$state_file\" 2>/dev/null || { rm -f \"\$state_file\"; return 1; }; grep -q 'quickStepIntentResolved=true' \"\$state_file\" && grep -q 'isConnected=true' \"\$state_file\" && grep -q 'mCurrentLayout: .*recent' \"\$state_file\"; rc=\$?; rm -f \"\$state_file\"; return \$rc; }\n")
+            append("overview_connected() { dir=\$(module_dir \"\$OVERVIEW_ID\") || return 1; state_file=\"\$dir/.scroot-systemui-state.\$\$\"; rm -f \"\$state_file\"; \"\$TIMEOUT\" -k 1s 10s dumpsys activity service com.android.systemui/.SystemUIService > \"\$state_file\" 2>/dev/null || { rm -f \"\$state_file\"; return 1; }; grep -q 'quickStepIntentResolved=true' \"\$state_file\" && grep -q 'isConnected=true' \"\$state_file\" || { rm -f \"\$state_file\"; return 1; }; { grep -q 'mCurrentLayout: .*recent' \"\$state_file\" || grep -q 'com.android.quickstep.RecentsActivity' \"\$state_file\" || \"\$TIMEOUT\" -k 1s 8s dumpsys activity recents 2>/dev/null | grep -q 'com.sec.android.app.launcher/com.android.quickstep.RecentsActivity' || \"\$TIMEOUT\" -k 1s 8s dumpsys package com.sec.android.app.launcher 2>/dev/null | grep -q 'com.android.quickstep.RecentsActivity'; }; rc=\$?; rm -f \"\$state_file\"; return \$rc; }\n")
             append("task_broker_ready() { dir=\$(module_dir \"\$OVERVIEW_ID\") || return 1; pid=\$(cat \"\$dir/task-bridge.pid\" 2>/dev/null); case \"\$pid\" in ''|*[!0-9]*) return 1 ;; esac; name=\$({ tr '\\000' '\\n' < \"/proc/\$pid/cmdline\"; } 2>/dev/null | sed -n '1p'); kill -0 \"\$pid\" 2>/dev/null && [ \"\$name\" = 'scr01-task-bridge' ] && grep -q '^protocol=1 uid=0 tasks=[0-9][0-9]*$' \"\$dir/task-bridge.ready\" 2>/dev/null; }\n")
             append("overview_active() { module_exact \"\$OVERVIEW_ID\" \"\$OVERVIEW_VERSION\" && overview_integrity && [ \"\$(global_hash \"\$SYSTEMUI_TARGET\")\" = \"\$SYSTEMUI_PATCH_HASH\" ] && [ \"\$(bridge_hash)\" = \"\$BRIDGE_HASH\" ] && task_broker_ready && pidof com.android.systemui >/dev/null && overview_connected; }\n")
             append("home_active() { module_exact \"\$HOME_ID\" \"\$HOME_VERSION\" && home_integrity && [ \"\$(global_hash \"\$HOME_TARGET\")\" = \"\$HOME_PATCH_HASH\" ] && pidof com.samsung.android.mhshome >/dev/null; }\n")
@@ -1105,10 +1109,9 @@ object RootFlow {
             append("HOME_DIR=\$(module_dir \"\$HOME_ID\") || exit 56\n")
             append("module_exact \"\$OVERVIEW_ID\" \"\$OVERVIEW_VERSION\" && overview_integrity || exit 55\n")
             append("module_exact \"\$HOME_ID\" \"\$HOME_VERSION\" && home_integrity || exit 56\n")
-            append("if overview_active; then echo '[ui] native Recents and Apps bridge already active'; else echo '[ui] activating native Recents and Apps bridge'; \"\$TIMEOUT\" -k 30s 110s /system/bin/sh \"\$OVERVIEW_DIR/boot-completed.sh\"; OVERVIEW_RC=\$?; tail -n 12 \"\$OVERVIEW_DIR/service.log\" 2>/dev/null; [ \$OVERVIEW_RC -eq 0 ] || exit 57; fi\n")
+            append("if overview_active; then echo '[ui] native Recents and Apps bridge already active'; elif [ \"\$(global_hash \"\$SYSTEMUI_TARGET\")\" = \"\$SYSTEMUI_PATCH_HASH\" ] && pidof com.android.systemui >/dev/null; then echo '[ui] patched SystemUI already mounted; overview module was not rerun'; else echo '[ui] activating native Recents and Apps bridge'; \"\$TIMEOUT\" -k 30s 110s /system/bin/sh \"\$OVERVIEW_DIR/boot-completed.sh\"; OVERVIEW_RC=\$?; tail -n 12 \"\$OVERVIEW_DIR/service.log\" 2>/dev/null; [ \$OVERVIEW_RC -eq 0 ] || exit 57; fi\n")
             append("if home_active; then echo '[ui] stock Home menu and swipe gesture already active'; else echo '[ui] activating stock Home menu and swipe gesture'; \"\$TIMEOUT\" -k 30s 110s /system/bin/sh \"\$HOME_DIR/boot-completed.sh\"; HOME_RC=\$?; tail -n 12 \"\$HOME_DIR/service.log\" 2>/dev/null; [ \$HOME_RC -eq 0 ] || exit 58; fi\n")
-            append("ui_active || { activation_running && wait_for_activation; } || exit 59\n")
-            append("echo 'UI_READY installed-and-active'\n")
+            append("if ui_active || { home_active && [ \"\$(global_hash \"\$SYSTEMUI_TARGET\")\" = \"\$SYSTEMUI_PATCH_HASH\" ] && pidof com.android.systemui >/dev/null; }; then echo 'UI_READY installed-and-active'; elif activation_running && wait_for_activation; then echo 'UI_READY late-load-active'; else exit 59; fi\n")
         }
         val result = captureRootScript(
             script,
@@ -1120,7 +1123,7 @@ object RootFlow {
             result.lines.any { it.startsWith("UI_READY ") }
         if (!ready && provisionFailureMayUseLiveRecovery(result.rc, result.timedOut)) {
             val health = probeSystemUiLiveHealth(ctx)
-            log("  [recovery] retrying the safely rolled-back UI component")
+            log("  [recovery] retrying UI activation. This does not unmount vendor or reboot.")
             ready = recoverProvisionedSystemUiLive(health, log) &&
                 verifyProvisionedSystemUiLive(ctx)
         }
@@ -1573,7 +1576,8 @@ object RootFlow {
         val userspaceReady: Boolean,
         val exploitAttempted: Boolean,
         val systemUiIntegrated: Boolean = false,
-        val systemUiDeferred: Boolean = false
+        val systemUiDeferred: Boolean = false,
+        val healthLines: List<String> = emptyList()
     )
 
     internal fun isUserUnlockedForSystemUi(ctx: Context): Boolean {
@@ -1595,8 +1599,10 @@ object RootFlow {
                     false
                 }
         val healthReady = probeSystemUiLiveHealth(appContext).ready
-        if (receiptMatches) return healthReady
-        if (!systemUiReceiptCanRecover(receiptMatches, healthReady)) return false
+        val homeCurrent = mountedHomeMatchesExpected()
+        val liveReady = healthReady && homeCurrent
+        if (receiptMatches) return liveReady
+        if (!systemUiReceiptCanRecover(receiptMatches, liveReady)) return false
         return writeSystemUiReceipt(appContext)
     }
 
@@ -1612,8 +1618,9 @@ object RootFlow {
             OVERVIEW_PACKAGE,
             OVERVIEW_UI_BRIDGE_SHA256
         )
+        val officialCaller = officialHealthCaller(appContext)
         val health = try {
-            if (packageReady) {
+            if (packageReady && officialCaller) {
                 appContext.contentResolver.call(
                     Uri.parse(OVERVIEW_HEALTH_URI),
                     OVERVIEW_HEALTH_METHOD,
@@ -1623,19 +1630,156 @@ object RootFlow {
             } else {
                 null
             }
+        } catch (_: SecurityException) {
+            null
         } catch (_: Exception) {
             null
         }
-        val overviewReady = health != null && overviewHealthSignalsReady(
+        val providerReady = health != null && overviewHealthSignalsReady(
             protocol = health.getInt("protocol", -1),
             buildId = health.getString(OVERVIEW_HEALTH_BUILD_KEY),
             quickstepBound = health.getBoolean("quickstep_bound", false),
             brokerReady = health.getBoolean("broker_ready", false)
         )
+        val overviewReady = overviewReadyForCaller(
+            officialCaller = officialCaller,
+            providerReady = providerReady,
+            functionalRecents = !officialCaller && functionalRecentsObserved()
+        )
         return SystemUiLiveHealth(
             overviewReady = overviewReady,
             homeReady = isHomeUiLive(appContext)
         )
+    }
+
+    private fun officialHealthCaller(ctx: Context): Boolean {
+        val info = packageInfo(ctx, ctx.packageName) ?: return false
+        return signerDigests(info) == setOf(OFFICIAL_HEALTH_CALLER_SHA256)
+    }
+
+    internal fun overviewReadyForCaller(
+        officialCaller: Boolean,
+        providerReady: Boolean,
+        functionalRecents: Boolean
+    ): Boolean = if (officialCaller) providerReady else providerReady || functionalRecents
+
+    internal fun functionalRecentsFromFlags(
+        quickStepResolved: Boolean,
+        quickStepConnected: Boolean,
+        layoutRecent: Boolean,
+        recentsComponent: Boolean
+    ): Boolean = quickStepResolved && quickStepConnected &&
+        (layoutRecent || recentsComponent)
+
+    internal fun diagnosticFlag(lines: List<String>, key: String): Boolean? =
+        when (lines.lastOrNull { it.trim().startsWith("$key=") }?.substringAfter("=")?.trim()) {
+            "1" -> true
+            "0" -> false
+            else -> null
+        }
+
+    internal fun postRootHealthWarning(lines: List<String>): String? {
+        if (lines.isEmpty() ||
+            lines.any {
+                it == "HEALTH_TIMEOUT" ||
+                    it == "HEALTH_UNAVAILABLE" ||
+                    it.startsWith("HEALTH_SKIP")
+            }
+        ) {
+            return "SystemUI health is unknown. Root was not changed."
+        }
+        return when (lines.firstOrNull { it.startsWith("MAPPER=") }?.substringAfter("=")) {
+            "present" -> null
+            "missing" ->
+                "SystemUI cannot see the graphics mapper. Root was not changed, and vendor was not unmounted."
+            else -> "SystemUI health is unknown. Root was not changed."
+        }
+    }
+
+    private fun functionalRecentsObserved(): Boolean {
+        if (!isModuleLoaded()) return false
+        val script = """
+            state=/data/adb/.scroot-recents-state.${'$'}${'$'}
+            rm -f "${'$'}state"
+            /system/bin/timeout -k 1s 8s dumpsys activity service com.android.systemui/.SystemUIService > "${'$'}state" 2>/dev/null || { rm -f "${'$'}state"; exit 1; }
+            if grep -q 'quickStepIntentResolved=true' "${'$'}state"; then echo QUICKSTEP_RESOLVED=1; else echo QUICKSTEP_RESOLVED=0; fi
+            if grep -q 'isConnected=true' "${'$'}state"; then echo QUICKSTEP_CONNECTED=1; else echo QUICKSTEP_CONNECTED=0; fi
+            if grep -q 'mCurrentLayout: .*recent' "${'$'}state"; then echo LAYOUT_RECENT=1; else echo LAYOUT_RECENT=0; fi
+            component=0
+            if grep -q 'com.android.quickstep.RecentsActivity' "${'$'}state"; then component=1; fi
+            if dumpsys activity recents 2>/dev/null | grep -q 'com.sec.android.app.launcher/com.android.quickstep.RecentsActivity'; then component=1; fi
+            if dumpsys package com.sec.android.app.launcher 2>/dev/null | grep -q 'com.android.quickstep.RecentsActivity'; then component=1; fi
+            echo RECENTS_COMPONENT=${'$'}component
+            rm -f "${'$'}state"
+        """.trimIndent()
+        val result = execBuffered(
+            "/system/bin/su",
+            listOf("-c", script),
+            timeoutMs = 8_000
+        )
+        if (result.timedOut || result.rc != 0) return false
+        val resolved = diagnosticFlag(result.lines, "QUICKSTEP_RESOLVED") ?: return false
+        val connected = diagnosticFlag(result.lines, "QUICKSTEP_CONNECTED") ?: return false
+        val layout = diagnosticFlag(result.lines, "LAYOUT_RECENT") ?: return false
+        val component = diagnosticFlag(result.lines, "RECENTS_COMPONENT") ?: return false
+        return functionalRecentsFromFlags(resolved, connected, layout, component)
+    }
+
+    private fun mountedHomeMatchesExpected(): Boolean {
+        if (!isModuleLoaded()) return false
+        val hash = initNamespaceFileSha256("/system/priv-app/MHSHome/MHSHome.apk")
+        return hash == HOME_UI_PATCH_SHA256
+    }
+
+    private fun initNamespaceFileSha256(path: String): String? {
+        val script = """
+            /system/bin/nsenter -t 1 -m -- /system/bin/timeout -k 1s 15s sha256sum '$path' 2>/dev/null | awk '{print ${'$'}1}'
+        """.trimIndent()
+        val result = execBuffered(
+            "/system/bin/su",
+            listOf("-c", script),
+            timeoutMs = 20_000
+        )
+        if (result.timedOut || result.rc != 0) return null
+        return result.lines.firstOrNull { it.matches(Regex("[0-9a-f]{64}")) }
+    }
+
+    private fun boundedPostRootHealth(): List<String> {
+        if (!isModuleLoaded()) {
+            return listOf("HEALTH_SKIP module_not_loaded")
+        }
+        val script = """
+            pid=${'$'}(pidof com.android.systemui 2>/dev/null | awk '{print ${'$'}1}')
+            echo SYSTEMUI_PID=${'$'}{pid:-none}
+            if [ -n "${'$'}pid" ] && nsenter -t "${'$'}pid" -m -- ls /vendor/lib64/hw/android.hardware.graphics.mapper@4.0-impl-mediatek.so >/dev/null 2>&1; then
+              echo MAPPER=present
+            elif [ -n "${'$'}pid" ]; then
+              echo MAPPER=missing
+            else
+              echo MAPPER=unknown
+            fi
+            wifi=${'$'}(settings get global wifi_on 2>/dev/null)
+            echo WIFI_ON=${'$'}{wifi:-unknown}
+            echo HEALTH_END
+        """.trimIndent()
+        val result = execBuffered(
+            "/system/bin/su",
+            listOf("-c", script),
+            timeoutMs = 8_000
+        )
+        val lines = result.lines.map { it.trim() }.filter { it.startsWith("SYSTEMUI_PID=") ||
+            it.startsWith("MAPPER=") || it.startsWith("WIFI_ON=") || it == "HEALTH_END" }
+        return if (result.timedOut) listOf("HEALTH_TIMEOUT") else lines.ifEmpty {
+            listOf("HEALTH_UNAVAILABLE")
+        }
+    }
+
+    private fun recordBoundedHealth(log: (String) -> Unit): List<String> {
+        log("[HEALTH] Root core is ready. Checking SystemUI and Wi-Fi without changing them.")
+        val lines = boundedPostRootHealth()
+        lines.forEach { log("  $it") }
+        log("[HEALTH] Kernel umount and Overview were not changed by this check.")
+        return lines
     }
 
     internal fun overviewHealthSignalsReady(
@@ -1962,6 +2106,11 @@ object RootFlow {
                 log("[WARNING] Launcher integration deferred until KernelSU setup is healthy.")
                 false
             }
+            val healthLines = if (crowned && ksudReady && patchReceiptReady && hookTransactionHealthy) {
+                recordBoundedHealth(log)
+            } else {
+                emptyList()
+            }
             return Result(
                 rooted = true,
                 moduleLoaded = patchReceiptReady && hookTransactionHealthy,
@@ -1969,7 +2118,8 @@ object RootFlow {
                 userspaceReady = ksudReady,
                 exploitAttempted = false,
                 systemUiIntegrated = systemUiIntegrated,
-                systemUiDeferred = systemUiDeferred
+                systemUiDeferred = systemUiDeferred,
+                healthLines = healthLines
             )
         }
 
@@ -2158,7 +2308,11 @@ object RootFlow {
                     "  native result: ${nativeReceipt.outcome.name} " +
                         "phase=${nativeReceipt.phase} detail=${nativeReceipt.detail}"
                 )
-                if (nativeReceipt.outcome.postUaf &&
+                if (nativeReceipt.outcome == NativeOutcome.RECLAIM_MISS) {
+                    log("  [LATCH] RECLAIM_MISS is recorded for this boot. Reboot before another attempt.")
+                } else if (nativeReceipt.outcome == NativeOutcome.SAFE_ABORT) {
+                    log("  [BLOCKED] Pre-exploit abort. The kernel exploit did not continue.")
+                } else if (nativeReceipt.outcome.postUaf &&
                     nativeReceipt.outcome != NativeOutcome.ROOT_VERIFIED) {
                     log("  Post-UAF state detected. No further exploit action is allowed this boot.")
                 }
@@ -2355,6 +2509,11 @@ object RootFlow {
                 "[WARNING] module not loaded — review the trace"
             }
         )
+        val healthLines = if (mod && mgr && ksudReady) {
+            recordBoundedHealth(log)
+        } else {
+            emptyList()
+        }
         return Result(
             rooted = true,
             moduleLoaded = mod,
@@ -2362,7 +2521,8 @@ object RootFlow {
             userspaceReady = ksudReady,
             exploitAttempted = true,
             systemUiIntegrated = systemUiIntegrated,
-            systemUiDeferred = systemUiDeferred
+            systemUiDeferred = systemUiDeferred,
+            healthLines = healthLines
         )
     }
 

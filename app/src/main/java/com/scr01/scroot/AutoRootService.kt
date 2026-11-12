@@ -480,14 +480,14 @@ class AutoRootService : Service() {
                             "Launcher and SystemUI integration needs repair"
                         )
                     ) return
-                    appendAutoLog("[FAILED] Launcher and SystemUI integration needs repair")
+                    appendAutoLog("[UI] $UI_REPAIR_GUIDANCE")
                     BootTraceBus.complete(
                         success = false,
-                        completionDetail = "Root is active; launcher integration needs repair"
+                        completionDetail = "Root is active; launcher UI can be repaired without another exploit"
                     )
                     finishService(
-                        "Launcher setup needs repair",
-                        "Open SCRoot to repair the Apps screen and Root menu.",
+                        "Root retained",
+                        UI_REPAIR_GUIDANCE,
                         false
                     )
                 }

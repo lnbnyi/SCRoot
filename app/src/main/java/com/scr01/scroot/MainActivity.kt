@@ -47,8 +47,63 @@ internal fun pipelineIsActive(
     manualGuardActive: Boolean = false
 ): Boolean = rootFlowRunning || autoServiceActive || manualGuardActive
 
+internal fun manualStartAllowed(
+    automaticActive: Boolean,
+    manualActive: Boolean,
+    flowRunning: Boolean
+): Boolean = !pipelineIsActive(
+    rootFlowRunning = flowRunning,
+    autoServiceActive = automaticActive,
+    manualGuardActive = manualActive
+)
+
 internal fun manualExploitAttemptLimit(moduleLive: Boolean): Int =
     if (moduleLive) 0 else 1
+
+internal enum class ManualFlowOutcome {
+    COMPLETE,
+    EXPLOIT_REBOOT,
+    PREFLIGHT_BLOCKED,
+    MODULE_REBOOT,
+    USERSPACE_REPAIR,
+    UI_REPAIR,
+    MANAGER_REPAIR
+}
+
+internal fun manualFlowOutcome(
+    rooted: Boolean,
+    moduleLoaded: Boolean,
+    managerCrowned: Boolean,
+    userspaceReady: Boolean,
+    systemUiIntegrated: Boolean,
+    exploitAttempted: Boolean
+): ManualFlowOutcome {
+    val complete = rooted &&
+        moduleLoaded &&
+        managerCrowned &&
+        userspaceReady &&
+        systemUiIntegrated
+    return when {
+        complete -> ManualFlowOutcome.COMPLETE
+        !rooted && exploitAttempted -> ManualFlowOutcome.EXPLOIT_REBOOT
+        !rooted -> ManualFlowOutcome.PREFLIGHT_BLOCKED
+        !moduleLoaded -> ManualFlowOutcome.MODULE_REBOOT
+        !userspaceReady -> ManualFlowOutcome.USERSPACE_REPAIR
+        !systemUiIntegrated -> ManualFlowOutcome.UI_REPAIR
+        else -> ManualFlowOutcome.MANAGER_REPAIR
+    }
+}
+
+internal const val UI_REPAIR_GUIDANCE =
+    "Only the launcher UI needs repair. Root stays active. Repair does not run the exploit, reboot, or unmount anything. There is no rollback control."
+
+internal fun redactedDiagnosticLines(lines: List<String>, limit: Int = 40): List<String> {
+    val secret = Regex("(?i)(password|token|private key|BEGIN [A-Z ]*PRIVATE)")
+    return lines
+        .map { it.replace('\n', ' ').trim().take(240) }
+        .filter { it.isNotEmpty() && !secret.containsMatchIn(it) }
+        .takeLast(limit.coerceIn(1, 80))
+}
 
 @SuppressLint("SetTextI18n")
 class MainActivity : Activity() {
@@ -92,45 +147,50 @@ class MainActivity : Activity() {
 
                 owner.get()?.let { activity ->
                     activity.logln("")
-                    val complete = result.rooted &&
-                        result.moduleLoaded &&
-                        result.managerCrowned &&
-                        result.userspaceReady &&
-                        result.systemUiIntegrated
-                    when {
-                        complete -> {
+                    val warning = RootFlow.postRootHealthWarning(result.healthLines)
+                    if (warning != null) {
+                        activity.logln("[HEALTH] $warning")
+                    }
+                    when (manualFlowOutcome(
+                        rooted = result.rooted,
+                        moduleLoaded = result.moduleLoaded,
+                        managerCrowned = result.managerCrowned,
+                        userspaceReady = result.userspaceReady,
+                        systemUiIntegrated = result.systemUiIntegrated,
+                        exploitAttempted = result.exploitAttempted
+                    )) {
+                        ManualFlowOutcome.COMPLETE -> {
                             activity.logln("[OK] KernelSU-Next setup is complete.")
                             activity.logln("Confirm the active status in KernelSU Manager.")
-                            activity.finishUi(true)
+                            activity.finishUi(true, healthWarning = warning)
                         }
-                        !result.rooted && result.exploitAttempted -> {
+                        ManualFlowOutcome.EXPLOIT_REBOOT -> {
                             activity.logln("[FAILED] The kernel exploit did not complete.")
                             activity.logln("[CAUTION] Retrying in the same boot may cause a kernel panic.")
                             activity.logln("Reboot the device before opening SCRoot again.")
                             activity.finishReboot()
                         }
-                        !result.rooted -> {
+                        ManualFlowOutcome.PREFLIGHT_BLOCKED -> {
                             activity.logln("[BLOCKED] The safety preflight stopped execution.")
                             activity.logln("The native exploit was not executed.")
                             activity.finishUi(false, "Check conditions again")
                         }
-                        !result.moduleLoaded -> {
+                        ManualFlowOutcome.MODULE_REBOOT -> {
                             activity.logln("[FAILED] Root was acquired, but the kernel module did not load.")
                             activity.logln("[CAUTION] A temporary kernel hook may still be active.")
                             activity.logln("Reboot the device before opening SCRoot again.")
                             activity.finishReboot()
                         }
-                        !result.userspaceReady -> {
+                        ManualFlowOutcome.USERSPACE_REPAIR -> {
                             activity.logln("[FAILED] The module loaded, but ksud verification did not complete.")
                             activity.logln("Userspace setup can be retried without repeating the exploit.")
                             activity.finishUi(false, "Retry setup repair")
                         }
-                        !result.systemUiIntegrated -> {
-                            activity.logln("[FAILED] KernelSU is ready, but the SCR-01 launcher integration did not complete.")
-                            activity.logln("The Apps screen, Root menu and native Recents can be repaired without repeating the exploit.")
-                            activity.finishUi(false, "Repair launcher integration")
+                        ManualFlowOutcome.UI_REPAIR -> {
+                            activity.logln("[UI] $UI_REPAIR_GUIDANCE")
+                            activity.finishRootRetainedRepair(warning)
                         }
-                        else -> {
+                        ManualFlowOutcome.MANAGER_REPAIR -> {
                             activity.logln("[FAILED] Manager signature verification or crown setup did not complete.")
                             activity.finishUi(false, "Retry manager connection")
                         }
@@ -601,6 +661,62 @@ class MainActivity : Activity() {
         root.addView(automationCard)
         root.addView(spacer(12))
 
+        val appsCard = cardLayout().apply {
+            addView(sectionTitle(
+                "Apps",
+                "Open installed apps from SCRoot. This does not edit the stock Home sidebar, change the default launcher, or enable the SystemUI bridge."
+            ))
+            addView(Button(this@MainActivity).apply {
+                text = "Open apps"
+                setTextColor(primary)
+                textSize = 15f
+                typeface = medium
+                isAllCaps = false
+                gravity = Gravity.CENTER
+                stateListAnimator = null
+                background = rounded(primaryContainer, 18)
+                minHeight = 0
+                minimumHeight = 0
+                setPadding(dp(18), 0, dp(18), 0)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(48)
+                ).also { it.topMargin = dp(14) }
+                setOnClickListener { openAppList() }
+            })
+        }
+        root.addView(appsCard)
+        root.addView(spacer(12))
+
+        val menuCard = cardLayout().apply {
+            addView(sectionTitle(
+                "Root 菜单",
+                "选择已安装的应用，分成时钟、按键、代理等类别。保存后侧栏直接使用，不会卸载应用。"
+            ))
+            addView(Button(this@MainActivity).apply {
+                text = "编辑 Root 菜单"
+                setTextColor(primary)
+                textSize = 15f
+                typeface = medium
+                isAllCaps = false
+                gravity = Gravity.CENTER
+                stateListAnimator = null
+                background = rounded(primaryContainer, 18)
+                minHeight = 0
+                minimumHeight = 0
+                setPadding(dp(18), 0, dp(18), 0)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(48)
+                ).also { it.topMargin = dp(14) }
+                setOnClickListener {
+                    startActivity(Intent(this@MainActivity, MenuEditorActivity::class.java))
+                }
+            })
+        }
+        root.addView(menuCard)
+        root.addView(spacer(12))
+
         button = Button(this).apply {
             text = "Start root setup"
             setTextColor(Color.WHITE)
@@ -643,7 +759,25 @@ class MainActivity : Activity() {
         logHeader.addView(logState)
         logCard.addView(logHeader)
         logCard.addView(textView("Kernel, memory and payload trace", 13f, textSecondary).apply {
-            setPadding(0, dp(6), 0, dp(14))
+            setPadding(0, dp(6), 0, dp(8))
+        })
+        logCard.addView(Button(this).apply {
+            text = "View diagnostics"
+            setTextColor(textPrimary)
+            textSize = 14f
+            typeface = regular
+            isAllCaps = false
+            gravity = Gravity.CENTER
+            stateListAnimator = null
+            background = rounded(surfaceMuted, 14)
+            minHeight = 0
+            minimumHeight = 0
+            setPadding(dp(14), 0, dp(14), 0)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                dp(40)
+            ).also { it.bottomMargin = dp(12) }
+            setOnClickListener { showDiagnostics() }
         })
 
         log = TextView(this).apply {
@@ -1008,15 +1142,12 @@ class MainActivity : Activity() {
                 logState.text = "UI repair"
                 logState.setTextColor(warning)
                 logState.background = rounded(warningContainer, 20)
-                setOverallState("Repair available", warning, warningContainer)
-                setSetupSummary(
-                    "Root and KernelSU are ready. Finish the Apps screen and Root menu setup."
-                )
+                setOverallState("Root retained", warning, warningContainer)
+                setSetupSummary(UI_REPAIR_GUIDANCE, warning)
                 setButtonEnabled(true, "Repair launcher integration", primary)
                 logStateOnce(
                     "system-ui-repair",
-                    "[INFO] KernelSU is active; launcher integration is not verified for this boot.",
-                    "Repair does not repeat the kernel exploit."
+                    "[UI] $UI_REPAIR_GUIDANCE"
                 )
             }
             state.moduleLive -> {
@@ -1425,7 +1556,15 @@ class MainActivity : Activity() {
     }
 
     private fun confirmOrStart() {
-        if (running || RootFlow.isRunning()) return
+        if (!manualStartAllowed(
+                automaticActive = AutoRootService.isActiveInProcess(),
+                manualActive = ManualFlowGuardService.isActiveInProcess(),
+                flowRunning = running || RootFlow.isRunning()
+            )
+        ) {
+            logln("[BLOCKED] Setup is already running for this boot. The exploit will not be started again.")
+            return
+        }
         if (RootFlow.isModuleLoaded()) {
             start()
             return
@@ -1440,6 +1579,26 @@ class MainActivity : Activity() {
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Continue") { _, _ -> start() }
             .show()
+    }
+
+    private fun openAppList() {
+        if (running || RootFlow.isRunning()) {
+            Toast.makeText(
+                this,
+                "Wait until setup finishes.",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+        try {
+            startActivity(Intent(this, AppListActivity::class.java))
+        } catch (_: RuntimeException) {
+            Toast.makeText(
+                this,
+                "The app list could not be opened.",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 
     private fun openKernelSuManager() {
@@ -1532,7 +1691,67 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun finishUi(successful: Boolean, retryLabel: String? = null) = runOnUiThread {
+    private fun showDiagnostics() {
+        val bodyLines = redactedDiagnosticLines(log.text?.split('\n').orEmpty())
+        val body = buildString {
+            if (bodyLines.isEmpty()) {
+                append("No diagnostic lines yet.")
+            } else {
+                bodyLines.forEach { append(it).append('\n') }
+            }
+            append('\n')
+            append(UI_REPAIR_GUIDANCE)
+        }
+        val message = TextView(this).apply {
+            text = body
+            setTextColor(textPrimary)
+            textSize = 13f
+            typeface = regular
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+            setTextIsSelectable(true)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Diagnostics")
+            .setView(ScrollView(this).apply { addView(message) })
+            .setPositiveButton("Share") { _, _ ->
+                val share = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, body.take(12_000))
+                }
+                try {
+                    startActivity(Intent.createChooser(share, "Diagnostics"))
+                } catch (_: RuntimeException) {
+                    Toast.makeText(this, "Diagnostics could not be shared.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun finishRootRetainedRepair(healthWarning: String?) = runOnUiThread {
+        if (!activityAlive || isFinishing || isDestroyed) return@runOnUiThread
+        running = false
+        pipelineWasObserved = false
+        stopMinimumUptimeCountdown()
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        setAutoRootDangerAppearance(false)
+        openManagerOnClick = false
+        logState.text = "UI repair"
+        logState.setTextColor(warning)
+        logState.background = rounded(warningContainer, 20)
+        setOverallState("Root retained", warning, warningContainer)
+        setSetupSummary(
+            if (healthWarning == null) UI_REPAIR_GUIDANCE else "$UI_REPAIR_GUIDANCE $healthWarning",
+            warning
+        )
+        setButtonEnabled(true, "Repair launcher integration", primary)
+    }
+
+    private fun finishUi(
+        successful: Boolean,
+        retryLabel: String? = null,
+        healthWarning: String? = null
+    ) = runOnUiThread {
         if (!activityAlive || isFinishing || isDestroyed) return@runOnUiThread
         running = false
         pipelineWasObserved = false
@@ -1541,12 +1760,16 @@ class MainActivity : Activity() {
         if (successful) {
             setAutoRootDangerAppearance(false)
             openManagerOnClick = true
-            logState.text = "Done"
-            logState.setTextColor(success)
-            logState.background = rounded(successContainer, 20)
+            logState.text = if (healthWarning == null) "Done" else "Check"
+            logState.setTextColor(if (healthWarning == null) success else warning)
+            logState.background = rounded(
+                if (healthWarning == null) successContainer else warningContainer,
+                20
+            )
             setOverallState("Rooted", success, successContainer)
             setSetupSummary(
-                "Temporary root, KernelSU Next and the SCR-01 system UI are ready."
+                healthWarning ?: "Temporary root, KernelSU Next and the SCR-01 system UI are ready.",
+                if (healthWarning == null) textSecondary else warning
             )
             setButtonEnabled(true, "Open KernelSU", success)
         } else {

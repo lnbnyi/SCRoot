@@ -88,6 +88,56 @@ class HomeSidebarDeltaTest(unittest.TestCase):
         self.assertIn(b"addIfLaunchable", dex)
         self.assertIn(b"getLaunchIntentForPackage", dex)
         self.assertNotIn(b"android.intent.category.HOME", dex)
+        self.assert_menu_context_register(dex)
+
+    def assert_menu_context_register(self, dex: bytes) -> None:
+        """The string search above does not see register types. ART rejected
+        MenuData.getData because v6 was a String passed as Context at code
+        unit 0x168. This walks the generated dex invoke arguments."""
+        jars = Path("/tmp/smali-jars")
+        jars.mkdir(exist_ok=True)
+        needed = {
+            "dexlib2.jar": "https://repo1.maven.org/maven2/org/smali/dexlib2/2.5.2/dexlib2-2.5.2.jar",
+            "util.jar": "https://repo1.maven.org/maven2/org/smali/util/2.5.2/util-2.5.2.jar",
+            "guava.jar": "https://repo1.maven.org/maven2/com/google/guava/guava/27.1-android/guava-27.1-android.jar",
+            "jsr305.jar": "https://repo1.maven.org/maven2/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar",
+            "failureaccess.jar": "https://repo1.maven.org/maven2/com/google/guava/failureaccess/1.0.1/failureaccess-1.0.1.jar",
+        }
+        for name, url in needed.items():
+            target = jars / name
+            if not target.exists() or target.stat().st_size == 0:
+                subprocess.run(["curl", "-fsSL", "-o", str(target), url], check=True)
+        source = ROOT / "tools/dex-verify/CheckInvokeTypes.java"
+        classes = jars / "classes"
+        classes.mkdir(exist_ok=True)
+        classpath = ":".join(str(jars / name) for name in needed)
+        subprocess.run(
+            ["javac", "-cp", classpath, "-d", str(classes), str(source)],
+            check=True,
+        )
+        with tempfile.NamedTemporaryFile(suffix=".dex") as handle:
+            handle.write(dex)
+            handle.flush()
+            result = subprocess.run(
+                [
+                    "java",
+                    "-cp",
+                    classpath + ":" + str(classes),
+                    "CheckInvokeTypes",
+                    handle.name,
+                    "MenuData;->getData",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        output = result.stdout + result.stderr
+        self.assertNotIn(
+            "Ljava/lang/String; expected Landroid/content/Context;",
+            output,
+            output,
+        )
+        self.assertIn("checked=1", output, output)
 
 
 if __name__ == "__main__":

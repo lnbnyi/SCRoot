@@ -84,6 +84,8 @@ class HomeSidebarDeltaTest(unittest.TestCase):
             self.assertIn(package_name.encode(), dex)
         self.assertIn(b"SCRoot", dex)
         self.assertIn(b"KSU Next", dex)
+        self.assertEqual(dex.count(b"Box for Root"), 1)
+        self.assertEqual(dex.count(b"com.box.app"), 1)
         self.assertIn(b"launchable", dex)
         self.assertIn(b"addIfLaunchable", dex)
         self.assertIn(b"getLaunchIntentForPackage", dex)

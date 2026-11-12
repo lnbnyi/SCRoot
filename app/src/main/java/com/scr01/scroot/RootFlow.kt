@@ -93,11 +93,11 @@ object RootFlow {
     private const val HOME_UI_PATCHER_SHA256 =
         "50688c893eab8fcf73277590f1b0486f1ba4a63431f568296ddbd864864d3089"
     private const val HOME_UI_DELTA_SHA256 =
-        "18fb9cd306d221841c322d29470d4d0a9efd1be984e008e679e4d3868f581cbb"
+        "f7afbe15dde5bea7237cc964217d0cb402f20700efa718ceb1c51f5cddf78503"
     private const val HOME_UI_BOOT_SHA256 =
-        "b6f19382ca21206ed706c5b8fb6a1b7f608e0e7cc7b4f9f1acf0d87f9272be04"
+        "dfd8bce8ed0866affa99b7f9d996c52f723b7e9e955f8b1fd1549287e8a205be"
     private const val HOME_UI_UNINSTALL_SHA256 =
-        "de012db3f34aa294b9bad714f4e022fb1fc7395202a507864ea13b8c4b8784ab"
+        "2c0c1415c35af9493901637bb79b5a92362d290c75706c77d90f5c76ed4c603e"
     private const val HOME_UI_MODULE_PROP_SHA256 =
         "dc377eb86b02f8d94a95b264e81bbd957d2e10f9b9a9ac19fe25b1a259257f1f"
     private const val HOME_UI_SKIP_MOUNT_SHA256 =
@@ -132,7 +132,7 @@ object RootFlow {
         "meta-overlayfs-scr01.zip" to
             "df4b4a33c9974eb873e62ad01fa7229e9648cc848d032f6192a89b055cb9528c",
         HOME_UI_ASSET to
-            "0f2e8d8ec02b8ab78fc41f3a32df126d282a2f78242d1dd4f9bf85b33d06cc05",
+            "d7c26d33eeaf66a1fe9dc5c3b965abf0b43a8bcbeafbfba1b48bac45b3117c1b",
         OVERVIEW_UI_ASSET to
             "a3bcae90900fd02436108b8644fb5aa9e247816b98fb8fbe4f0c9ee81ce45981"
     )
@@ -1054,7 +1054,7 @@ object RootFlow {
             append("HOME_ZIP_HASH='${EXPECTED_ARTIFACT_SHA256[HOME_UI_ASSET]}'\n")
             append("HOME_TARGET=/system/priv-app/MHSHome/MHSHome.apk\n")
             append("SYSTEMUI_TARGET=/system/system_ext/priv-app/SystemUI/SystemUI.apk\n")
-            append("HOME_PATCH_HASH=bb226a5f4b7b2fe86b6f24870798a25c605fa123b4d578a69db51c4d50adf1bd\n")
+            append("HOME_PATCH_HASH=7656910e613e8cd400ecba2a095412098089ea5c266aed6bf924e1523277ad47\n")
             append("SYSTEMUI_PATCH_HASH=6814f34f7a382ed197b647294ccd166d78556431ec1cb3d914e2736837c6db14\n")
             append("BRIDGE_HASH=$OVERVIEW_UI_BRIDGE_SHA256\n")
             append("HOME_PATCHER_HASH=$HOME_UI_PATCHER_SHA256\n")

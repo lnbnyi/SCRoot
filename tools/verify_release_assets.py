@@ -49,12 +49,13 @@ EXPECTED_HOME_PREDECESSORS = {
     "abb5ae74eb28fa535e44128df1b66865d4788795cb3ee925c04df0a179c1e912",
     "2fa44dca4260679ebbf1f8e661ed2444d677b232b32c300a83c6ba5e8145488c",
     "77b3c5617775a3df239a2ffdeb2e90282b292b8020d8a6f53216cae200e16c18",
+    "bb226a5f4b7b2fe86b6f24870798a25c605fa123b4d578a69db51c4d50adf1bd",
 }
 
 TOP_LEVEL = {
     ASSETS / "manager.apk": "80a9e4b1ba9644f361add3e003e1075bd4f9cb374bbde465c2b57522b5288ba9",
     ASSETS / "meta-overlayfs-scr01.zip": "df4b4a33c9974eb873e62ad01fa7229e9648cc848d032f6192a89b055cb9528c",
-    ASSETS / "scr01-home-ui-1.7.28.zip": "0f2e8d8ec02b8ab78fc41f3a32df126d282a2f78242d1dd4f9bf85b33d06cc05",
+    ASSETS / "scr01-home-ui-1.7.28.zip": "d7c26d33eeaf66a1fe9dc5c3b965abf0b43a8bcbeafbfba1b48bac45b3117c1b",
     ASSETS / "scr01-overview-bridge-0.4.36.zip": "a3bcae90900fd02436108b8644fb5aa9e247816b98fb8fbe4f0c9ee81ce45981",
     NATIVE / "libadbroot.so": "5562adc1e5c6f52fb91f469a1a7d3480050d8697fb5dedbd7fb386d282cd88b8",
     NATIVE / "libbootstrap.so": "e81028efeaf44aba81607aa6116cc1273ad8f4d4eee4ec58ff5e14be061fca90",
@@ -79,12 +80,12 @@ ZIP_CONTENTS = {
     },
     ASSETS / "scr01-home-ui-1.7.28.zip": {
         "bin/scbspatch": "50688c893eab8fcf73277590f1b0486f1ba4a63431f568296ddbd864864d3089",
-        "boot-completed.sh": "b6f19382ca21206ed706c5b8fb6a1b7f608e0e7cc7b4f9f1acf0d87f9272be04",
-        "customize.sh": "59a66916c4ea6111f9376e1183da8a46be5ca30d7d5044ed79bfcb70715ba5b9",
+        "boot-completed.sh": "dfd8bce8ed0866affa99b7f9d996c52f723b7e9e955f8b1fd1549287e8a205be",
+        "customize.sh": "b9b013604ac2179c03c58e3dd545e51ff503e9cd5bc2288b73aebe0e8d615a86",
         "module.prop": "dc377eb86b02f8d94a95b264e81bbd957d2e10f9b9a9ac19fe25b1a259257f1f",
-        "patch/MHSHome.bsdiff": "18fb9cd306d221841c322d29470d4d0a9efd1be984e008e679e4d3868f581cbb",
+        "patch/MHSHome.bsdiff": "f7afbe15dde5bea7237cc964217d0cb402f20700efa718ceb1c51f5cddf78503",
         "skip_mount": "139d0bf2668b9eb865fcb2f6dd4e8a48a2c379cebee8e87120cfcb0e064f8afb",
-        "uninstall.sh": "de012db3f34aa294b9bad714f4e022fb1fc7395202a507864ea13b8c4b8784ab",
+        "uninstall.sh": "2c0c1415c35af9493901637bb79b5a92362d290c75706c77d90f5c76ed4c603e",
     },
     ASSETS / "scr01-overview-bridge-0.4.36.zip": {
         "app/SCROverview.apk": "e21c90ee1c70c0a3134f532e179bef1cdaaa47105f63fbce4ca850596607258d",
